@@ -52,14 +52,26 @@ CREATE TABLE returns(
 
 );
 
+SELECT COALESCE(returned, 'No')
+FROM "returns" r 
+
+
 select * from orders o ;
 select * from people p ;
 select * from returns r;
 
-select o2.row_id, o2.order_id, o2.order_date, o2.ship_date, o2.ship_mode, o2.customer_id, o2.customer_name, o2.region, r2.returned, p2.person 
-from orders o2 left join returns r2 on o2.order_id = r2.order_id
+--итоговая таблица, с присоединёнными колонками
+
+select o2.row_id, o2.order_id, o2.order_date, o2.ship_date, o2.ship_mode, o2.customer_id, o2.customer_name, 
+o2.segment, o2.country, o2.city, o2.state, o2.postal_code,  o2.region, o2.product_id, o2.category, o2.subcategory,
+o2.product_name, o2.sales, o2.quantity, o2.discount, o2.profit,
+coalesce(r2.returned, 'No') as returned, p2.person 
+from orders o2  left join returns r2 on o2.order_id = r2.order_id
 left join people p2 on o2.region = p2.region
+group by o2.row_id, r2.returned, p2.person
 ;
+
+
 
 select o2.row_id, o2.order_id, o2.order_date, o2.ship_date, o2.ship_mode, o2.customer_id, o2.customer_name, o2.region, p2.person
 from orders o2 left join people p2 on o2.region = p2.region;
