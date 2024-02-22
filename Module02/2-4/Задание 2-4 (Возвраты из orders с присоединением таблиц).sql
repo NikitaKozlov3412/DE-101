@@ -56,9 +56,10 @@ select * from orders o ;
 select * from people p ;
 select * from returns r;
 
-select o2.row_id, o2.order_id, o2.order_date, o2.ship_date, o2.ship_mode, o2.customer_id, o2.customer_name, o2.region, r2.returned 
+select o2.row_id, o2.order_id, o2.order_date, o2.ship_date, o2.ship_mode, o2.customer_id, o2.customer_name, o2.region, r2.returned, p2.person 
 from orders o2 left join returns r2 on o2.order_id = r2.order_id
-where returned notnull;
+left join people p2 on o2.region = p2.region
+;
 
 select o2.row_id, o2.order_id, o2.order_date, o2.ship_date, o2.ship_mode, o2.customer_id, o2.customer_name, o2.region, p2.person
 from orders o2 left join people p2 on o2.region = p2.region;
