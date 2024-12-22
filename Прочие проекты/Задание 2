@@ -1,0 +1,221 @@
+Задание 
+
+У вас есть доступ к базе данных Отдела продаж (PostgreSQL), куда загружаются данные об ответах менеджеров в сделках в amoCRM. Диалог с каждым клиентом ведётся внутри своей сделки. 
+Необходимо: 
+1. Написать SQL-запрос, который будет рассчитывать среднее время ответа для каждого менеджера/пары менеджеров. 
+Расчёт должен учитывать следующее: 
+• если в диалоге идут несколько сообщений подряд от клиента или менеджера, то при расчёте времени ответа надо учитывать только первое сообщение из каждого блока; 
+• менеджеры работают с 09:30 до 00:00, поэтому нерабочее время не должно учитываться в расчёте среднего времени ответа, т.е. если клиент написал в 23:59, а менеджер ответил в 09:30 – время ответа равно одной минуте; 
+• ответы на сообщения, пришедшие ночью также нужно учитывать. 
+2. На основе базы данных из первого задания построить дашборд в DataLens с данными о среднем времени ответа менеджеров. Виды визуализаций и структура отчёта произвольные, однако необходима возможность фильтровать данные по дням, менеджерам и начальникам отделов продаж. 
+3. Решить первое задание при помощи Python и библиотеки pandas
+
+
+Ниже мой вариант решения.
+ 
+1.	SQL-запрос для расчёта среднего времени ответа менеджеров с подробными комментариями, что и как делали.
+
+Шаг 1: Определение временных таблиц (CTE)
+Запрос начинается с определения нескольких временных таблиц (Common Table Expressions, CTE), которые используются для упрощения основного запроса. В данном случае мы используем четыре CTE: FilteredMessages, FirstMessages, ValidMessages и ResponseTimes.
+
+WITH FilteredMessages AS (
+    SELECT 
+        message_id,
+        type,
+        entity_id,
+        created_by,
+        created_at,
+        LAG(type) OVER (PARTITION BY entity_id ORDER BY created_at) AS previous_type,
+        LAG(created_by) OVER (PARTITION BY entity_id ORDER BY created_at) AS previous_created_by
+    FROM 
+        test.chat_messages
+        LEFT JOIN test.managers ON managers.mop_id = chat_messages.created_by
+)
+
+
+Цель: Извлечь сообщения из таблицы chat_messages и добавить информацию о предыдущем типе сообщения и предыдущем создателе сообщения для каждого entity_id.
+Действия:
+Используется функция LAG(), чтобы получить тип и создателя предыдущего сообщения для каждого entity_id, упорядоченных по времени создания (created_at).
+Результат включает message_id, type, entity_id, created_by, created_at, а также previous_type и previous_created_by.
+
+1.2.	FirstMessages
+
+FirstMessages AS (
+    SELECT 
+        message_id,
+        type,
+        entity_id,
+        created_by,
+        created_at,
+        CASE 
+            WHEN type = 'incoming_chat_message' AND (previous_type IS NULL OR previous_type = 'outgoing_chat_message') THEN created_at
+            WHEN type = 'outgoing_chat_message' AND (previous_type IS NULL OR previous_type = 'incoming_chat_message') THEN created_at
+            ELSE NULL 
+        END AS first_message_time
+    FROM 
+        FilteredMessages
+)
+
+
+Цель: Определить время первого сообщения для каждого entity_id.
+Действия:
+Используется конструкция CASE, чтобы установить first_message_time для входящих и исходящих сообщений, если они следуют друг за другом. Если сообщение является первым в своем потоке, его время создания сохраняется.
+
+
+1.3.	ValidMessages
+
+ValidMessages AS (
+    SELECT 
+        entity_id,
+        created_by,
+        created_at,
+        first_message_time,
+        CASE 
+            WHEN DATE_PART('hour', to_timestamp(created_at)) < 9 
+                 OR (DATE_PART('hour', to_timestamp(created_at)) = 9 AND DATE_PART('minute', to_timestamp(created_at)) < 30) 
+            THEN DATE_TRUNC('day', to_timestamp(created_at)) + INTERVAL '1 day' + INTERVAL '09:30' 
+            ELSE to_timestamp(created_at) 
+        END AS adjusted_time
+    FROM 
+        FirstMessages
+    WHERE 
+        first_message_time IS NOT NULL
+)
+
+
+Цель: Определить корректированное время для сообщений, чтобы учесть рабочие часы.
+Действия:
+Если время сообщения меньше 9:30, оно корректируется на следующий день в 9:30. В противном случае используется оригинальное время сообщения.
+Фильтруются только те сообщения, у которых есть first_message_time.
+
+
+1.4.	ResponseTimes
+
+ResponseTimes AS (
+    SELECT 
+        entity_id,
+        created_by,
+        adjusted_time,
+        LEAD(adjusted_time) OVER (PARTITION BY entity_id ORDER BY adjusted_time) AS next_message_time
+    FROM 
+        ValidMessages
+)
+
+
+Цель: Определить время следующего сообщения для каждого entity_id.
+Действия:
+Используется функция LEAD(), чтобы получить next_message_time для каждого сообщения, упорядоченного по adjusted_time.
+
+
+Шаг 2: Основной запрос
+
+SELECT 
+    managers.name_mop,  -- Добавляем имя менеджера
+    created_by,
+    ROUND(AVG(EXTRACT(EPOCH FROM (next_message_time - adjusted_time)) / 60), 2) AS average_response_time
+FROM 
+    ResponseTimes
+JOIN 
+    managers ON managers.mop_id = ResponseTimes.created_by  -- Присоединяем таблицу managers
+WHERE 
+    next_message_time IS NOT NULL
+GROUP BY 
+    managers.name_mop, created_by  -- Группируем
+
+
+В процессе выполнения был выявлен ряд ошибок (скриншоты к сожалению сохранить не удалось). Одна из них была связана с (EXTRACT(EPOCH …)
+
+Полагаю, что это особенности работы PostgreSQL с календарём.
+Ещё одна ошибка была связана с типом данных. Там я «джойнил» разные типы данных.
+
+
+
+Итоговый запрос (делал в HeidiSQL, для меня привычная среда):
+
+WITH FilteredMessages AS (
+SELECT
+message_id,
+type,
+entity_id,
+created_by,
+created_at,
+LAG(type) OVER (PARTITION BY entity_id ORDER BY created_at) AS previous_type,
+LAG(created_by) OVER (PARTITION BY entity_id ORDER BY created_at) AS previous_created_by
+FROM
+test.chat_messages
+LEFT JOIN test.managers ON managers.mop_id = chat_messages.created_by
+),
+FirstMessages AS (
+SELECT
+message_id,
+type,
+entity_id,
+created_by,
+created_at,
+CASE
+WHEN type = 'incoming_chat_message' AND (previous_type IS NULL OR previous_type = 'outgoing_chat_message') THEN created_at
+WHEN type = 'outgoing_chat_message' AND (previous_type IS NULL OR previous_type = 'incoming_chat_message') THEN created_at
+ELSE NULL
+END AS first_message_time
+FROM
+FilteredMessages
+),
+ValidMessages AS (
+SELECT
+entity_id,
+created_by,
+created_at,
+first_message_time,
+CASE
+WHEN DATE_PART('hour', to_timestamp(created_at)) < 9
+OR (DATE_PART('hour', to_timestamp(created_at)) = 9 AND DATE_PART('minute', to_timestamp(created_at)) < 30)
+THEN DATE_TRUNC('day', to_timestamp(created_at)) + INTERVAL '1 day' + INTERVAL '09:30'
+ELSE to_timestamp(created_at)
+END AS adjusted_timechat_messages
+FROM
+FirstMessages
+WHERE
+first_message_time IS NOT NULL
+),
+ResponseTimes AS (
+SELECT
+entity_id,
+created_by,
+adjusted_time,
+LEAD(adjusted_time) OVER (PARTITION BY entity_id ORDER BY adjusted_time) AS next_message_time
+FROM
+ValidMessages
+)
+SELECT
+managers.name_mop,  -- Добавляем имя менеджера
+created_by,
+ROUND(AVG(EXTRACT(EPOCH FROM (next_message_time - adjusted_time)) / 60), 2) AS average_response_time
+FROM
+ResponseTimes
+JOIN
+managers ON managers.mop_id = ResponseTimes.created_by  -- Присоединяем таблицу managers
+WHERE
+next_message_time IS NOT NULL
+GROUP BY
+managers.name_mop, created_by  -- Группируем по имени менеджера и created_by
+ORDER BY
+    average_response_time DESC
+ 
+2.	Ссылка на дашборд в DataLens с публичным доступом.
+
+
+https://datalens.yandex/vhzmr5r63ut2h
+
+ 
+В источники добавил запрос SQL.
+ 
+
+Также отдельным запросом потребовалось «джойнить» начальников отдела продаж. Была ошибка т.к. rop_id с типом данных varchar.
+
+
+3.	Доступ к ссылка на Google Colab (доступ у всех, у кого есть ссылка).
+
+https://colab.research.google.com/drive/1fEcFNx0bzndo3Sy0TeRpL9c7VPoPQoa5?usp=sharing
+
+Здесь писать думаю излишне (уже много информации), по ссылке есть короткие пояснения к коду.
+
