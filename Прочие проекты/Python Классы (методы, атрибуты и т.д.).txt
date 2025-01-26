@@ -1,0 +1,54 @@
+class Cat:
+  def __init__(self, color, legs):
+    self.color = color
+    self.legs = legs
+
+felix = Cat("ginger", 4)
+rover = Cat("dog-colored", 4)
+stumpy = Cat("brown", 3)
+
+
+________________________
+
+
+class Dog:
+    def __init__(self, name, color):
+        self.name = name
+        self.color = color
+
+    def bark(self):
+        print("Woof!")
+
+fido = Dog("Fido", "brown")
+print(fido.name)
+fido.bark()
+
+
+_______________________
+
+
+class Student:
+  def __init__(self, name):
+    self.name = name
+  
+  def sayHi(self):
+    print("Hi from "+self.name)
+  
+s1 = Student("Amy")
+s1.sayHi()
+
+_______________________
+
+class Player:
+    def __init__(self, name, level):
+        self.name = name
+        self.level = level
+
+    def intro(self):
+        print(self.name + " (Level " + self.level + ")")
+
+#ваш код
+nm = input()
+lv = input()
+p1 = Player(nm, lv)
+p1.intro()
