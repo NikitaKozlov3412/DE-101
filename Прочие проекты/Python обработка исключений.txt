@@ -1,0 +1,48 @@
+try:
+    num1 = 7
+    num2 = 0
+    print (num1 / num2)
+    print("Done calculation")
+except ZeroDivisionError:
+    print("An error occurred")
+    print("due to zero division")
+
+
+
+_____________________________________
+
+
+try:
+    variable = 10
+    print(variable + "hello")
+    print(variable / 2)
+except ZeroDivisionError:
+    print("Divided by zero")
+except (ValueError, TypeError):
+    print("Error occurred")
+
+
+_____________________________________
+
+
+try:
+    word = "spam"
+    print(word / 0)
+except:
+    print("An error occurred")
+
+
+_____________________________________
+
+#Задание
+
+def withdraw(amount):
+   print(str(amount) + " withdrawn!")
+
+#ваш код
+try:
+   amount = int(input())
+   withdraw(amount)
+except ValueError:
+   print("Please enter a number")
+
