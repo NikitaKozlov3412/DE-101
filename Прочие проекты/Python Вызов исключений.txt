@@ -1,0 +1,26 @@
+num = 102
+if num > 100:
+  raise ValueError
+
+
+__________________________________
+
+
+name = "123"
+raise NameError("Invalid name!")
+
+
+___________________________________
+#Задание
+
+tweet = input()
+
+try:
+   #ваш код
+    dlina = len(tweet)
+    if dlina > 42:
+        raise ValueError
+except ValueError:
+    print("Error")
+else:
+    print("Posted")
