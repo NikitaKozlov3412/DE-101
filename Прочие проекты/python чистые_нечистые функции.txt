@@ -1,0 +1,15 @@
+def pure(arg, some_list=None):
+    if some_list is None:
+        some_list = []
+    some_list.append(arg)
+    return some_list
+    
+    
+result1 = pure(1)
+print(result1)  # [1]
+
+result2 = pure(2, result1)
+print(result2)  # [1, 2]
+
+result3 = pure(3, result2)
+print(result3) # [1, 2, 3]
