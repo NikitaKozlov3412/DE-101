@@ -1,0 +1,19 @@
+def fib(x):
+  if x == 0 or x == 1:
+    return 1
+  else:
+    return fib(x-1) + fib(x-2)
+print(fib(4))
+
+__________________________________
+#двоичное преобразование
+def convert(num):
+  if num == 0:
+    return 0
+  elif num == 1:
+    return 1
+  else: 
+   return (num % 2 + 10 * convert(num // 2)) 
+
+a = int(input())
+print(convert(a))
