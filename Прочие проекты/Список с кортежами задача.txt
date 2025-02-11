@@ -1,0 +1,45 @@
+contacts = [
+    ('James', 42),
+    ('Amy', 24),
+    ('John', 31),
+    ('Amanda', 63),
+    ('Bob', 18)
+]
+
+# Функция для поиска возраста по имени
+def find_age(name):
+    for contact in contacts:
+        if contact[0].lower() == name.lower():  # Сравниваем имена без учета регистра
+            return contact[1]
+    return None  # Если имя не найдено
+
+# Основная программа
+name_input = input()
+age = find_age(name_input)
+
+if age is not None:
+    print(f"{name_input} " "is " f"{age}")
+else:
+    print("Not Found")
+
+________________________________________________
+# 2й вариант (без функции)
+
+contacts = [
+    ('James', 42),
+    ('Amy', 24),
+    ('John', 31),
+    ('Amanda', 63),
+    ('Bob', 18)
+]
+
+name_input = input()
+
+for contact in contacts:
+        a = ''
+        if contact[0].lower() == name_input.lower():  # Сравниваем имена без учета регистра
+            a = str(contact[0]) + " is " + str(contact[1])
+            print(a)
+            break
+if a == '':
+    print("Not Found")
